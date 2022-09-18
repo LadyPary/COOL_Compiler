@@ -1,0 +1,214 @@
+=====================================================
+My code's documentation, Zahra Rabbany, 610398124
+=====================================================
+	References: 1) A Tour of the Cool Support Code
+				2) The Cool Reference Manual
+				3) Bison and Bison Grammer Manuals
+				4) cool-tree.aps
+
+	%{
+     C declarations => Unchanged
+    %}
+
+     Bison declarations => 
+		In this section:
+
+		1) I first declared types for grammar's non-terminals.
+       	The default non-terminals are based on section 6.1 on page 3 and 4 of the Cool support code. Others are needed for my CFG. These are: 
+			%type <formals> formal_helper -> Helps to invalidate expressions such as (, b: Int) in methods.
+
+			%type <expressions> arguments
+			%type <expressions> arguments_list -> Used to invalidate expressions such as (, exp) in dispatch.
+
+			%type <expression> let_identifier -> Used to handle nested let expressions.
+
+			%type <case_> branch
+			%type <cases> branch_list
+			-> Used to handle cases.
+
+		2) Then I wrote the precedence declarations according to section 11.1 on page 	 17 of the cool manual, "All binary operations are left-associative, with 	  the exception of assignment, which is right-associative, and the three 		comparison operations, which do not associate. 
+       
+          	The 'LET_' is for let expressions, this will solve the 18 shift/reduce conflicts and shifts right until there are no more expressions to match for the body of the let expression and then would reduce. 
+			For example in the case "let x:Int <- 5 in x+y" would reduce to 
+			"expression" instead of "expression + y".
+     %%
+     Grammar rules =>
+	 	In this section:
+
+		I wrote the CFG for cool syntax according to the cool manual and exactly in the same order. I just replaced each identifier with OBJECTID, types with TYPEID and, tokens with their character. I also declared the semantic value of each node and used the constructors explained in cool-tree.aps and A Tour of the Cool Support Code to build the nodes. Some tricky points and the parts that needed some extra work are explained here:
+
+		1) Formals list may be empty. formals ~> hd : Int, tl : List 
+           These are the formal parameters (i.e. arguments) of methods when we define them. 
+
+           The point of using three rules is to avoid expressions such as
+		   " , tl : List " to be valid expressions. We do this by making sure that the formal_list would either be empty or start with an non-empty formal.
+		
+		2)  Based on Figure 1 on page 16 of cool manual. 
+        	I. Expressions are the largest syntactic category in Cool.
+   			II. Constants, Identifiers, Assignment, Dispatch, Conditionals, Loops,Blocks, Let, Case, New, Isvoid, and, Arithmetic and Comparison Operations. 
+
+		3) In handeling let expressions i used precedence declaration on rules.
+           Since "LET_" is defined to be right associative, it would group 
+           the let expressions from right to left, also it has the highest
+           priority for a shift move, so in case of a shift/reduce conflict
+           it would shift instead of reducing. This way it can extend the 
+           body expression as much as possible.
+
+		4) In the arguments in each method call. i.e. <expr>,...,<expr> 
+       	   The point of using two rules is to avoid expressions such as ",<exp>" to be valid expressions. We do this by making sure that the arguments_list would either be empty or start with an non-empty expression. 
+
+		Error Recovery:
+		    
+		  1) Recovering from errors in class definitions (ans3):
+
+             I. If there is an error in a class definition but the class is terminated properly and the next class is syntactically correct, the parser should be able to restart at the next class definition. 
+
+            II. special token error is a terminal symbol that is always defined and reserved for error handling. In essence, error is like the .* pattern in flex. It recognizes everything until a specified delimiter is reached. Usually you have the error production read everything until the parse can get back to a normal parsing state.  
+
+           III. yyerrok is used as an action to solve the type clash warnings.  
+                yyerrok says, ‘‘The old error is finished. If something else goes wrong, it is to be regarded as a new error.'’
+
+	        As I figured in coolac parser, "class WRONG inherits WRONG/RIGHT {}" is valid, thus we should recover from it but "class WRONG {}" is invalid and the parser should halt. I implemented this behaviour. 
+
+		  2) Recovering from errors in features (ans3):
+		  	Features are the body of the class : attributes and methods. 
+			I used the error token to catch errors in both attributes and methods.
+			Since there was no delimiter that could distinguish these two, I had to explicitly define each possible case of error.
+			In my draft implementation:
+			--
+			class Test {
+				   bar(x:Int;y:Int):Int {if true then 4 fi};
+				};
+			--
+			Would also parse an error next to ')' because it couldn't recover from 
+			'x:Int;'.
+
+			3) Recovering from errors in expressions (ans3):
+				I) In the expression list I used " error ';' " so if it couldn't match an expression it would consider every token as an error and go to the next expression with follows the first ';'
+
+			4) Recovering from errors in let bindings (ans3):
+			   Goes to the next variable using the same logic as error recovery in features.
+
+			5) Recovering from errors in branches of case:
+			   Goes to the next branch using the same logic as error recovery in features and let bindings.
+     %%
+
+=====================================================
+README file for Programming Assignment 3 (C++ edition)
+======================================================
+
+Your directory should now contain the following files:
+
+ Makefile		  -> [course dir]/src/PA3/Makefile
+ README
+ cool.y
+ bad.cl
+ good.cl
+ cool-tree.handcode.h
+ cool-tree.cc		  -> [course dir]/src/PA3/cool-tree.cc
+ cool-tree.aps		  -> [course dir]/src/PA3/cool-tree.aps
+ dumptype.cc		  -> [course dir]/src/PA3/dumptype.cc
+ handle_flags.c           -> [course dir]/src/PA3/handle_flags.cc
+ parser-phase.cc	  -> [course dir]/src/PA3/parser-phase.cc
+ stringtab.cc		  -> [course dir]/src/PA3/stringtab.cc
+ tokens-lex.cc		  -> [course dir]/src/PA3/tokens-lex.cc
+ tree.cc		  -> [course dir]/src/PA3/tree.cc
+ utilities.cc		  -> [course dir]/src/PA3/utilities.cc
+ *.d			  dependency files
+ *.*			  other generated files
+
+The include (.h) files for this assignment can be found in 
+[course dir]/include/PA3
+
+	The Makefile contains targets for compiling and running your
+	program. DO NOT MODIFY.
+    
+	cool.y is the skeleton for the parser specification that you
+	are to write. It already contains productions for the program
+	and the classes. Use them as an example to write the remaining
+	productions.  You should also read the bison documentation.
+	This skeleton will compile and run as is, but it doesn't
+	do much.
+
+	good.cl, bad.cl test a few features of the grammar. You should
+	add tests to ensure that good.cl exercises every legal
+	construction of the grammar and that bad.cl exercises as many
+	different parsing errors as you can squeeze into one file.
+
+	cool-tree.aps contains the definitions for the tree language
+	which you use to construct the abstract syntax tree (AST).
+	From this file, cool-tree.h and cool-tree.cc are automatically 
+        generated by a utility that compiles the specification into
+        C++ functions for producing and consuming the tree nodes.
+        This file is provided for your reference.  DO NOT MODIFY.
+
+        tree.{cc|h} contain definitions used by the tree package.
+        cool-tree.handcode.h is the handwritten extension to
+        cool-tree.h.  If you read cool-tree.h and cool-tree.cc, you will
+        note that there are "hooks" for extending the classes
+        declarations.  Extending and modifying the tree package is
+        discussed in the "Cool Tour", but you do not need to (and should
+        not) modify the tree package for this assignment.
+
+	tokens-lex.cc is a lexer capable of reading a token stream from
+	console in the format produced by the lexer phase. DO NOT
+	MODIFY.
+
+        parser-phase.cc contains a driver to test the parser. DO NOT
+        MODIFY.
+
+	dumptype.cc prints the AST out in a form readable by the
+	semant phase of the compiler. DO NOT MODIFY.
+
+	handle_flags.cc implements routines for parsing command line
+        flags. DO NOT MODIFY.
+
+        The rest of the files are created as byproducts of `bison'.
+        `cool-parse.cc' is the generated C++ file containing the
+        parser.
+
+	Files not discussed are covered in the README for PA2.
+
+Instructions
+------------
+
+	To compile your parser program type:
+
+	% make parser
+
+	This produces an executable named "parser" which is standalone
+	phase of the Cool compiler.  It requires lexer, semant, and cgen
+	to do anything useful.
+
+	To test your parser on a file 'foo.cl' type
+
+	% myparser foo.cl
+
+	myparser is a shell script that "glues" together lexer and
+	parser using pipes.
+
+	To run your parser on the files good.cl and bad.cl type:
+
+	% make dotest
+
+	To run the (provided) lexer and your parser on a file called test.cl type:
+
+	% ./lexer test.cl | ./parser
+
+	If you think your parser is correct and behaves like
+	the one we wrote, you may want to run a COOL compiler using
+	your parser:
+
+	% mycoolc foo.cl
+
+	To overwrite the default lexical analyzer with yours, replace 
+	lexer (which is a symbolic link to the "official" lexer) with
+        your lexer from PA2.
+
+
+        Instructions for turning in the assignment will be posted on the
+        course web page.
+
+        GOOD LUCK!
+
+
