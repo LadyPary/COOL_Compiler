@@ -72,7 +72,7 @@ At a high level, my semantic checker performs the following major tasks:
 	* Check each expression for type correctness.
 	* Annotate the AST with types.
 
-And checks for every possible semantic error possible in COOL.
+And checks for every semantic error possible in COOL.
 
 Refer to the readMe file for full details.
 
