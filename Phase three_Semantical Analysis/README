@@ -1,0 +1,603 @@
+=====================================================
+My code's documentation, Zahra Rabbany, 610398124
+=====================================================
+References: 
+ 1) A Tour of the Cool Support Code
+ 2) The Cool Reference Manual (Section 12: Type Rules)
+ 3) cool-tree.aps, tree.h, symtab_example.cc
+-----------------------------------------------------
+Files Modified: 
+ 1. Semant.cc: 
+ 	Main program, explained in full details below.
+
+	Contains:
+	 I. Class "ClassTable"-> 
+	      Used for inheritance graph and storing other  
+	      useful info about the tree.
+	 II. Method "SemanticAnalysis" on "program_class" 
+	 	 node ->
+		  Used for starting the recursive decent algorithm 
+	      on the abstract syntax tree.
+	 III. Method "TypeCheck" on each class node.->
+		   Used for performing the type checking rules
+	       on each node of AST.
+ 2. semant.h: 
+ 	 Header file, contains declarations of objects in Semant.cc.
+
+ 3. cool-tree.h and cool-tree-handcode.h:
+	 Header files, contains declarations of methods for retrieving
+	 data from AST nodes. The definitions are given in Semant.cc.
+	 They also contain the definitions of some c++ structs used for 
+	 storing useful info.
+
+ 4. good.cl, bad.cl, badClass.cl, and test.cl:
+    Include some practices on semantic properties of
+    the COOL language. 
+-----------------------------------------------------
+Program Structure: 
+
+	Total Number of Semantic Errors Caught: 5+6+30=41
+ .......................................................
+ Part 1: 
+
+  What is build:
+	classDict[class_name] = class_node
+	inherDict[class_name] = vector or parents
+
+  Explanation:
+   Using "ClassTable" class, and "classes" which is 
+   the list of Class_ nodes, stored in "program" node (i.e. root),
+   we gather all classes into a lookup table called "classDict"
+   that maps a class name to it's node. This is very useful
+   for future refrences. Also map is a suitable data structure
+   because it's lookup cost is O(1).
+
+   Then we catch all the fatal errors with classes and the 
+   inheritance graph. After this stage, if any error accurs,
+   we abort the compiling process. 
+
+   Also we create another lookup table "inherDict" that 
+   would map a class name to it's vector of parents, 
+   starting from the closest one up to Object.
+
+  Semantic Errors Caught:
+    1. Class C was previously defined.
+    2. Class C, or an ancestor of C, is involved in an inheritance cycle.
+    3. Class C cannot inherit class Int/Bool/String/SELF_TYPE. 
+    4. Class C inherits from an undefined class A. 
+    5. Redefinition of basic class Object/IO/Int/Bool/String/SELF_TYPE.
+ .......................................................
+ Part 2:  
+
+  What is build:
+    Env[class_name] = ClassFeatures
+    ClassFeatures { 
+		            methodEnv[method_name] = method_signature
+                    attrEnv[attr_name] = declared_type
+				  }
+
+  Explanation:
+   We call the method "SemanticAnalysis" on the root node (i.e program_class).
+   Here is where the recursive decent algorithm begin. 
+   We pass the classTable object build in previous pass to the method to use
+   the info we gathered in classDict and inherDict.
+
+   Before starting the recursive decent process, we check some semantic 
+   properties on features -methods and attributes- of each class.
+
+   Env as defined above is created for classes in classDict for easier
+   semantic check. You might find it easier to not use these and do 
+   the semantics without them!
+
+  Semantic Errors Caught:
+    1. Class Main is not defined. 
+	2. No 'main' method in class Main.
+
+	3. In redefined method c, return type String is different 
+	   from original return type Int.
+	4. Incompatible number of formal parameters in redefined method c.
+    5. In redefined method c, parameter type String is different from 
+	   original type Int.
+	
+	6. Attribute b is an attribute of an inherited class.
+.......................................................
+ Part 3:  
+
+  What is build:
+	ObjectEnvironment = SymbolTable<id_name ,id_type>
+	MethodEnvironment[class_node]=
+		(map of ClassMethods[method_name]= method_signature
+	CurrentClass = Class_ node 
+
+  Explanation:
+	Now it's time to build the three main tools we 
+	need for the type checking environment, which are:
+		Object Environment,
+		Method Environment, and
+		Current Class 
+
+    To be able to find M(class, f)=f.signature, where f could be
+    inherited from a parent of class, We have to create a lookup table,
+    that maps the class nodes to a another map that maps all of the class
+	methods -inherited or not- to their method signature.
+    Since there could be legal redefines of methods (we reported err 
+    for illegal one's in part 2!), we have to start from 
+	the oldest parent(i.e. Object) and add methods, up to the current class.
+
+    As the next step, we prepare the scope, we should add all the attributes of 
+	each parent to the scope. Since there would be no redefinitions(checked in part 2),
+	it doesn't matter whether to start from the current class or the oldest parent, 
+	they would all be smashed into one scope.
+	Object environment is built using the SymbolTable object as explained in 
+	symtab_example.cc.
+    methods on the symbol table are: 
+       map->enterscope();         
+           enter a scope; required before any symbols can be added.
+       map->addid(Symbol, Symbol);      
+           add a couple of entries mapping name to age.
+           the second argument must be a pointer to an Symbol.
+       map->probe(Symbol) != NULL  
+           check whether Symbol is in the current scope;
+       map->lookup(Symbol) != NULL
+           check whether Symbol is in any scope; lookup returns a pointer to the typeId.
+       map->exitscope();
+           leave a scope
+
+	VERY IMPORTANT CATCH ON USING SymbolTable OBJECTS:
+        make sure the second var is pointing to a memory loc 
+        that is stable in the whole run! Not local or temp vars.
+
+	Finaly the current class is the class we are performing the 
+	semantic analysis on. 
+
+	Now we have the objectEnvironment, the methodEnvironment and, the currentClass.
+    LET THE SEMANTIC ANALYSIS BEGIN!
+    As mentioned earlier, we use a recursive decent algorithm to pass through all nodes.
+    Starting from class nodes, down to their features, until we get to the leaves.
+    Note that I'm passing down the classTable only for the error routines and classDict, inherDict!
+
+  Semantic Errors Caught: NA 
+.......................................................
+ Part 4: 
+
+  What is build: NA
+
+  Explanation:
+   The type inferring logic rules from section 12.2 of The COOL Manuals
+   are the reference for the below codes.
+
+   We also implement two helper functions "join" and "isSubType"
+   that implement the largest common upper bound and conformance 
+   relations on the types.
+   SubType is implemented as explained in section 4 of The COOL Manual
+   join is implemented as explained in section 7.5 of The COOL Manual
+
+   Also note that while type checking each expression node, 
+   we also set the 'type' of that node to the appropriate type. 
+   So tree anonation and reporting errors are done in parallel.
+
+   Type checking on each node is explained below:
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: class__class
+
+   Additional Information:
+     When type checking a class, we should type check each one of 
+	 it's features (methods, attr). Some premitive type checking on 
+	 features have been done in previous passes. Here we are only 
+	 concerned with scope checking and compatibility of declared
+	 and inferred types.
+
+   Semantic Errors Caught: NA
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: method_class
+
+   Additional Information:
+    Note that a huge part of type checking on methods is 
+	already done in previous passes.
+    The rule for typing methods, checks the body of the method
+	in an environment where O{C} is extended with bindings for 
+	the formal parameters and self. The type of the method body must 
+    conform to the declared return type.
+	So first we should add all the formals to the scope, and then 
+	evaluate the body!
+   
+   Semantic Errors Caught:
+    1. Inferred return type String of method e does not 
+	   conform to declared return type Int.
+	
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: formal_class
+
+   Additional Information:
+	All properties of formals have been type checked before.
+	The only reason for this is the catch I explained on using
+	the symbolTable object.
+
+   Semantic Errors Caught: NA
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: attr_class
+
+   Additional Information:
+    Note that a huge part of type checking on attributes 
+	is already done in previous passes.
+    The two rules for type checking attribute defininitions 
+	are similar the rules for let. The essential diference is
+	that attributes are visible within their initialization expressions.
+    Note that self is bound in the initialization.
+    Here we are only concered with the attributes with initialization.
+
+   Semantic Errors Caught:
+    1. Inferred type String of initialization of attribute b does 
+	   not conform to declared type Int.
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: assign_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. Undeclared identifier e.
+	2. Cannot assign to 'self'.
+	3. Inferred type String of assignment of attribute b 
+	   does not conform to declared type Int.
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: dispatch_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught: NA
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: method_class
+
+   Additional Information:
+    Dispatch expressions are the most complex to type check. e0.f(e1,...,en) : Tn+1
+    To type check a dispatch, each of the subexpressions must first be type checked.
+    The type T0 of e0 determines which declaration of the method f is used.
+    The argument types of the dispatch must conform to the declared argument types.
+	Note that the type of the result of the dispatch is either the declared return type or T0
+    in the case that the declared return type is SELF_TYPE. 
+
+   Semantic Errors Caught:
+    1. Dispatch to undefined method f.
+    2. Method f called with wrong number of arguments.
+    3. In call of method f, type Int of parameter no. 2 does 
+	   not conform to declared type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: static_dispatch_class
+
+   Additional Information:
+    e0@T.f(e1,...,en) : Tn+1
+    The only diference in type checking a static dispatch is 
+	that the class T of the method f is given in the dispatch, 
+	and the type T0 must conform to T.
+
+   Semantic Errors Caught:
+    1. Dispatch to undefined method f.
+    2. Type String of expression does not conform to static type 
+	   Bool of dispatch f of class C.
+    3. Incompatible number of arguments on dispatch of method f.
+    4. In call of method f, type Int of parameter no. 1 does not
+	   conform to declared type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: cond_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1.  Loop condition does not have type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: loop_class
+
+   Additional Information: NA
+    The predicate of a loop must have type Bool; 
+	the type of the entire loop is always Object.
+
+   Semantic Errors Caught:
+    1. Loop condition does not have type Bool.
+
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- 
+   Name of the Node: typcase_class
+
+   Additional Information: NA
+    Each branch of a case is type checked in an environment 
+	where variable xi has type Ti. The type of the entire case is
+	the join of the types of its branches. The variables declared 
+	on each branch of a case must all have distinct types.
+
+   Semantic Errors Caught:
+    1. The variables declared on the branches of case do not have 
+	   distinct types.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- 
+   Name of the Node: branch_class
+
+   Additional Information: NA
+    Each branch of a case is type checked in an environment 
+	where variable xi has type Ti. 
+
+   Semantic Errors Caught:
+    1. Loop condition does not have type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: block_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. Loop condition does not have type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: let_class
+
+   Additional Information: NA
+    We give type rules only for a let with a single variable.
+    Typing a multiple let, is defined to be the same as typing Let (Let (Let ...)).
+
+    Type checking for [Let-Init]: let x:T0<-e1 in e2:T1
+        First, the initialization e1 is type checked in an environment without 
+		a new definition for x. Thus, the variable x cannot be used in e1 unless 
+		it already has a definition in an outer scope.
+        Second, the body e2 is type checked in the environment O extended with the 
+		typing x : T0.
+		Third, note that the type of x may be SELF TYPE.
+
+    Type checking for [Let-No-Init]: let x:T0 in e1:T1
+        The rule for let with no initialization simply omits the conformance requirement.
+   
+   Semantic Errors Caught:
+    1. Inferred type String of initialization of variable b in Let, does not conform to declared type Int.
+    2. 'self' cannot be bound in a 'let' expression.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- 
+   Name of the Node: plus_class,sub_class,mul_class,divide_class
+                     
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. non-Int arguments: Int (+,-,*,/) String
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: neg_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. Argument of 'neg' has type Bool instead of Int.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- 
+   Name of the Node: comp_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. Argument of 'not' has type Int instead of Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- 
+   Name of the Node: loop_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. Loop condition does not have type Bool.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: eq_class
+
+   Additional Information: NA
+    The wrinkle in the rule for equality is that any types may be freely 
+	compared except Int, String and Bool, which may only be compared with 
+	objects of the same type.
+
+   Semantic Errors Caught:
+    1. Illegal comparison with a basic type String and Int.
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: lt_class, leq_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught:
+    1. non-Int arguments: Int (<,<=) String
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: int_const_class, bool_const_class,
+	  				 string_const_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught: NA
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+     Name of the Node: new__class
+
+   Additional Information: NA
+    There are two cases for new, one for new SELF_TYPE and one 
+	for any other form.Since we only have SELF_TYPEc, so directly 
+	returning type_name is okay.
+
+   Semantic Errors Caught: NA
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: isvoid_class, no_expr_class
+
+   Additional Information: NA
+
+   Semantic Errors Caught: NA
+
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+   Name of the Node: object_class
+
+   Additional Information: NA
+    The rule for object identifiers is simply that if the environment 
+    assigns an identifier Id type T, then Id has type T.
+
+   Semantic Errors Caught:
+    1. Undeclared identifier e.
+======================================================
+
+======================================================
+README file for Programming Assignment 4 (C++ edition)
+======================================================
+
+Your directory should now contain the following files:
+
+ Makefile
+ README
+ ast-lex.cc		-> [cool root]/src/PA4/ast-lex.cc
+ ast-parse.cc		-> [cool root]/src/PA4/ast-parse.cc
+ bad.cl
+ cgen			-> [cool root]/etc/../lib/.i
+ cool-tree.cc		-> [cool root]/src/PA4/cool-tree.cc
+ cool-tree.h
+ cool-tree.handcode.h
+ dumptype.cc		-> [cool root]/src/PA4/dumptype.cc
+ good.cl
+ handle_flags.cc	-> [cool root]/src/PA4/handle_flags.cc
+ mycoolc		-> [cool root]/src/PA4/mycoolc
+ mysemant		-> [cool root]/src/PA4/mysemant
+ semant-phase.cc	-> [cool root]/src/PA4/semant-phase.cc
+ semant.cc
+ semant.h
+ stringtab.cc		-> [cool root]/src/PA4/stringtab.cc
+ symtab_example.cc	-> [cool root]/src/PA4/symtab_example.cc
+ tree.cc		-> [cool root]/src/PA4/tree.cc
+ utilities.cc		-> [cool root]/src/PA4/utilities.cc
+ *.d			  dependency files
+
+The include (.h) files for this assignment can be found in 
+[cool root]/include/PA4
+
+	The Makefile contains targets for compiling and running your
+	program. DO NOT MODIFY.
+
+	The README contains this info. Part of the assignment is to fill
+	the README with the write-up for your project. You should
+	explain design decisions, explain why your code is correct, and
+	why your test cases are adequate. It is part of the assignment
+	to clearly and concisely explain things in text as well as to
+	comment your code.  Just edit this file.
+
+	good.cl and bad.cl test a few features of the semantic checker.
+	You should add tests to ensure that good.cl exercises as many
+	legal semantic combinations as possible and that bad.cl
+	exercises as many kinds of semantic errors as possible.
+
+	semant.h contains declarations and definitions for the semantic
+	analyzer.  Place class definitions for the structures you will
+	use here.
+
+	cool-tree.aps contains the definitions for the tree language
+	which you use to construct the abstract syntax tree (AST).
+	From this file, cool-tree.h and cool-tree.cc are automatically 
+        generated by a utility that compiles the specification into
+        C++ functions for producing and consuming the tree nodes.
+        This file is provided for your reference.  DO NOT MODIFY.
+
+        tree.{cc|h} contain definitions used by the tree package.  DO
+        NOT MODIFY.
+
+        cool-tree.h, and cool-tree.handcode.h specify and give an
+        implementation of Cool ASTs (see the README for PA3 and the
+        "Cool Tour").  In this assignment, you will need to add
+        functions to the AST classes to store, fetch, and compute
+        information about the AST.  Note that cool-tree.handcode.h
+        differs slightly from the file supplied for PA3.
+
+   	You should NOT remove any definitions that are already present
+	in cool-tree.h and cool-tree.handcode.h.  These functions and
+	data members are required for the system to function properly.
+
+        You should add any fields and methods to the classes you need to 
+	perform semantic analysis.  You	will need to add, for example, 
+	methods which traverse the expressions of the tree and implement 
+	the type-checking rules.
+
+	cool-tree.cc contains definitions of the provided methods,
+	and instantiations of the template for the list handling functions.
+	You should not modify this file, but place definitions of all
+	methods you add to cool-tree.h or cool-tree.handcode.h in semant.cc.
+	DO NOT MODIFY cool-tree.cc
+
+	semant.cc is the file in which you should write your semantic
+	analyzer.  The main() procedure calls the method `semant'
+	on `ast_root', the root of the abstract syntax tree generated by
+	the parser.  There are methods supplied that you should use to report 
+	errors. You are relatively free in how you decide to structure the 
+	semantic checker, but don't modify the error printing routines.
+
+	ast-lex.cc and ast-parse.cc implement a lexer and a parser for
+	reading text representation of ASTs from console in the format
+	produced by the parser phase. DO NOT MODIFY.
+
+	semant-phase.cc contains a test driver for semantic analysis.
+	The main program reads an AST in text form from standard input,
+	parses it, and then produces a type-annotated AST on standard
+	output.  The script mycoolc can pass any of the standard flags
+	to the semantic analyzer as well; for this assignment, -s
+	(semantic analysis debug) may be useful as it sets a global
+	variable semant_debug to true (1).  If you want your semantic
+	checker to print debug information when the option is set, write
+	your debug code in the following format:
+
+	      if (semant_debug)
+	      {
+		...
+	      }
+
+	semant_debug is provided as a convenience. You don't need to use
+	the debugging flags if you don't want to. DON'T MODIFY
+	semant-phase.cc
+
+	symtab.h contains a symbol table implementation. Read the
+	comments in the file, the "Cool Tour", and look at the example
+	in symtab_example.cc.  You are not required to use this code,
+	but you may find it useful. DO NOT MODIFY.
+
+Instructions
+------------
+
+	To compile the example use of the symbol table, type
+
+	% make symtab_example
+        % ./symtab_example
+
+	To compile your semantic analyzer program type:
+
+	% make semant
+
+	To test your semantic checker, type:
+
+        % ./mysemant good.cl
+
+	mysemant is a version of mycoolc that omits code generation.
+	mysemant parses all the cool files given on the command line and
+	builds a single abstract syntax tree containing all class
+	definitions appearing in the input files. Your semantic checker
+	is then called on this abstract syntax tree.  If there are no
+	errors, the program produces a type-annotated abstract syntax
+	tree as output.
+
+	To run your checker on the files good.cl and bad.cl type:
+
+	% make dotest
+
+	If you think your semantic checker is correct and behaves like
+	the one we wrote, you can try to run mycoolc using your checker,
+	your parser and also your lexical analyzer if you choose (see
+	below for instructions).  Remember if your lexer, parser or
+	checker behaves in an unexpected manner, you may get errors
+	anywhere.
+
+	If you change architectures you must issue
+
+	% make clean
+
+	when you switch from one type of machine to the other.
+	If at some point you get weird errors from the linker,	
+	you probably forgot this step.
+
+	GOOD LUCK!
+======================================================
