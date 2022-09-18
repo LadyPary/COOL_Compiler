@@ -18,7 +18,7 @@ I hope this meme made you smile! :)
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-This is a compiler's course project. The goal is to design a **compiler for the Classroom Object Oriented Language(COOL)**. To warm up, I programmed a **stack machine** using the COOL language in the first part of the project. Later on, I have implemented a **syntax analyzer** (i.e. lexer) in phase one that catches some syntax errors. In phase two I defined a **grammar for the language**(i.e. parser) to catch the rest of syntax errors. In phase three we have the **type checker**(i.e. semantic analyzer) which uses logic rules to perform the type inferes. 
+This is a compiler's course project. The goal is to design a **compiler for the Classroom Object Oriented Language(COOL)**. To warm up, I programmed a **stack machine** using the COOL language in the first part of the project. Later on, I have implemented a **syntax analyzer** (i.e. lexer) in phase one that catches some syntax errors. In phase two I defined a **grammar for the language**(i.e. parser) to catch the rest of the syntax errors. In phase three we have the **type checker**(i.e. semantic analyzer) which uses logic rules to perform the type inferences. 
 
 This is a famous project designed by the [Stanford university](https://web.stanford.edu/class/cs143/). I got the base code from them and made my contribution clear in the readMe.
 I've ran the Stanford grader on my codes and they nearly pass all the tests. 
